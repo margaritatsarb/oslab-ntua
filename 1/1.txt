@@ -1,0 +1,18 @@
+0: touch .hello_there
+1: chmod -rw .hello_there
+2: σε αλλο terminal ενω τρεχει 
+pidof riddle
+kill -SIGCONT pid
+3: export ANSWER = 42
+4: ltrace και export = 1 τις 2 μεταβλητες, ./ch4 strace riddle
+5: ./ch5
+6: ln .hello_there .hey_there
+7: ./ch6
+8: ./ch8
+9: σε αλλο terminal
+sudo socat TCP4-LISTEN:49842 STDOUT 
+10: ln secret_number try.txt
+11:
+12:
+13:
+14:
