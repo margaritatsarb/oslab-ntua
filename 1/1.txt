@@ -13,7 +13,8 @@
    sudo socat TCP4-LISTEN:49842 STDOUT 
 10: ln secret_number try.txt
 11:
-12:chmod +rw .hello_there
-   
-13:
+12:
+13:chmod +rw .hello_there
+   ./riddle
+   Eνω τρεχει ./ch13 και γραψε κατι στο terminal του riddle
 14:
