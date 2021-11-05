@@ -18,3 +18,9 @@
    ./riddle
    Eνω τρεχει ./ch13 και γραψε κατι στο terminal του riddle
 14:
+
+13:
+You will get SIGBUS if you attempt to write past the mapped region of the file.
+Chances are pretty good that your backing store file accounts is truncated/too short. (e.g.) if the file has space for 10 struct entries and you write to the 11th, you'll get SIGBUS
+Do an fstat to get st_size and compare this against the length parameter you're giving to mmap
+You may want to consider using ftruncate to extend the file before doing mmap
