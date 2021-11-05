@@ -10,12 +10,12 @@
 int main() {
     int fd1;
     int stat;
-    fd1 = open("secret_number", O_RDWR);
+    fd1 = openat(AT_FDCWD, "secret_number", O_RDWR|O_CREAT|O_TRUNC, 0600);
     char str1[72];
     int pid = fork();
     if (pid<0) perror("error");
     else if (pid == 0) {
-        printf("child %d\n",getpid());
+        //printf("child %d\n",getpid());
         char *const argv[] = {"./riddle",NULL};
         int status = execv(argv[0], argv);
         if (status < 0) {  //τρεχει μονο αν αποτυχει η execv
@@ -24,11 +24,11 @@ int main() {
         }
     }
     else {
-        printf("parent %d\n",getpid());
+        //printf("parent %d\n",getpid());
         sleep(5);
-        printf("parent %d\n",getpid());
         read(fd1, str1, 72);
         printf("%s",str1);
         if(sizeof(str1)==0) printf("no");
+        sleep(5);
     }
 }
