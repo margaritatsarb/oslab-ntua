@@ -12,12 +12,12 @@
 9: σε αλλο terminal
    sudo socat TCP4-LISTEN:49842 STDOUT 
 10: ln secret_number try.txt
-11:
-12:
-13:chmod +rw .hello_there
-   ./riddle
-   Eνω τρεχει ./ch13 και γραψε κατι στο terminal του riddle
-14:
+11: ./ch11
+12: ./ch12
+13: chmod +rw .hello_there
+    ./riddle
+    Eνω τρεχει ./ch13 και γραψε κατι στο terminal του riddle
+14: ./ch14
 
 13:
 You will get SIGBUS if you attempt to write past the mapped region of the file.
