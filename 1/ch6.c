@@ -7,7 +7,7 @@
 #include <fcntl.h>
 
 int main(){
-    int fd,a;
+    int fd;
     int fd1[2];
     int fd2[2];
     pipe(fd1);
