@@ -32,7 +32,5 @@ int main(){
         char textt[2];
         fgets(textt, sizeof(textt), stdin);
         write (fd, textt, 1);
-        mmap (0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    
     }
 }
