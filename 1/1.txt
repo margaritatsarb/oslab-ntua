@@ -4,7 +4,10 @@
    pidof riddle
    kill -SIGCONT pid
 3: export ANSWER = 42
-4: ltrace και export = 1 τις 2 μεταβλητες, ./ch4 strace riddle
+4: ltrace και export = 1 τις 2 μεταβλητες  
+   rm magic_mirror
+   mkfifo magic_mirror
+   ./riddle
 5: ./ch5
 6: ./ch6
 7: ln .hello_there .hey_there
