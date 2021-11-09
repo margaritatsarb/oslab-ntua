@@ -1,4 +1,5 @@
-0: touch .hello_there
+0: touch .hello_there + strace ./riddle
+Θέλει να ανοίξει το .hello_there αρχείο αλλά η open=-1, άρα το φτιάχνουμε με touch .hello_there
 1: chmod -rw .hello_there
 2: σε αλλο terminal ενω τρεχει 
    pidof riddle
