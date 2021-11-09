@@ -12,7 +12,8 @@ int main() {
     int stat;
     fd1 = openat(AT_FDCWD, "secret_number", O_RDWR|O_CREAT|O_TRUNC, 0600);
     char str1[72];
-    int pid = fork();
+    pid_t pid;
+    pid = fork();
     if (pid<0) perror("error");
     else if (pid == 0) {
         //printf("child %d\n",getpid());
