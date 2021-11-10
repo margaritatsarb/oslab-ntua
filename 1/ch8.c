@@ -8,7 +8,10 @@
 
 int main(){
     int fd = open("bf00", O_RDWR|O_CREAT, 0666);
-    lseek(fd,1073741824, SEEK_SET);
+    //παμε στη θεση στο αρχειο που διαβαζει το εκτελεσιμο και γραφουμε ετσι ωστε η read να επιστρεφει 1
+    lseek(fd,1073741824, SEEK_SET); //επανατοποθετει το file offset
+                                    //SEEK_SET: The file offset is set to offset bytes
+                                    //σε επιτυχια επιστρεφει το offset
     write(fd,"X",1);
     close(fd);
     fd = open("bf01", O_RDWR|O_CREAT, 0666);
