@@ -10,12 +10,13 @@
 int main(){
     int fd=open("/proc/sys/kernel/ns_last_pid",O_RDWR | O_CREAT, 0644);
     printf("%d\n",fd);
-    int f = flock(fd, LOCK_EX);
+    int f = flock(fd, LOCK_EX); //μονο αυτη η διεργασία μπορεί να κρατά αποκλειστικό κλείδωμα για αυτο το αρχειο
     if (f==-1) perror("flock");
-    ftruncate(fd, 0);
+    ftruncate(fd, 0); //στην περιπτωση που fd που εχει ειναι μεγαλυτερος απο 5 bytes
     write(fd,"32766",5);
     pid_t pid;
-    pid = fork();
+    //κανουμε fork ετσι ωστε η επομενη διεργασια να περιεχει το ζητουμενο pid το οποιο κληρονομει το εκτελεσιμο καθως τρεχει με execv
+    pid = fork(); 
     if (pid<0) perror("error");
     else if (pid == 0) {
         //32767
@@ -28,8 +29,8 @@ int main(){
         exit(0);
     }
     else exit(0);
-    if (flock(fd, LOCK_UN)) {
-        perror("Can't unlock");
+    if (flock(fd, LOCK_UN)) { //Αφαιρει την υπάρχουσα κλειδαριά που διατηρείται από αυτήν τη διαδικασία
+        perror("flock");
     }
     close(fd);
     return 0;
