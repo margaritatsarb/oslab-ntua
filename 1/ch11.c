@@ -13,6 +13,7 @@ int main() {
     fd1 = openat(AT_FDCWD, "secret_number", O_RDWR|O_CREAT|O_TRUNC, 0600);
     char str1[72];
     pid_t pid;
+    //Για να τρεχουν οι διεργασιες "ταυτοχρονα" και ενω γινει unlink να μην σβηστουν τα περιεχομενα του αρχειου πριν προλαβουμε να διαβασουμε τον αριθμο
     pid = fork();
     if (pid<0) perror("error");
     else if (pid == 0) {
@@ -29,6 +30,7 @@ int main() {
         sleep(5);
         read(fd1, str1, 72);
         printf("%s",str1);
+        sleep(10);
         if(sizeof(str1)==0) printf("no");
         sleep(5);
     }
