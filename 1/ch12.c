@@ -8,6 +8,7 @@
 int main(){
     pid_t pid;
     pid = fork();
+    //Για να τρεχουν οι διεργασιες "ταυτοχρονα"
     if (pid<0) perror("error");
     else if (pid == 0) {
         char *const argv[] = {"./riddle",NULL};
@@ -19,17 +20,18 @@ int main(){
     }
     else {
         char text[20];
-        gets(text);
+        gets(text); //Ονομα αρχειου στην εικονικη μνημη του εκτελεσιμου
         int fd;
         if ((fd=open(text, O_RDWR)) < 0){
             perror("open");
             return 0;
         }
-        if ((lseek (fd, 111, SEEK_SET)) < 0){
+        //πηγαινε στην διευθυνση του αρχειου που θα κανει read το εκτελεσιμο για να γινει εκει μετα το write
+        if ((lseek (fd, 111, SEEK_SET)) < 0){ //η ζητουμενη διευθυνση ειναι παντα 0x6f bytes αφου εχει επιστρεψει η διευθυνση απο την mmap 
             perror("lseek");
             return 0;
         }
-        char textt[2];
+        char textt[2]; //γραμμα που πρεπει να γραψουμε
         fgets(textt, sizeof(textt), stdin);
         write (fd, textt, 1);
     }
