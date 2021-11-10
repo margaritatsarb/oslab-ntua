@@ -1,0 +1,111 @@
+2:  pause() = ? ERESTARTNOHAND (To be restarted if no handler)
+    --- SIGALRM {si_signo=SIGALRM, si_code=SI_KERNEL} ---
+    rt_sigreturn({mask=[]}) = -1 EINTR (Interrupted system call) //επαναφέρει την process's signal mask, αλλαζει stacks, και επαναφέρει το περιβάλλον της διαδικασίας,
+                                                                   έτσι ώστε η διαδικασία να συνεχίσει την εκτέλεση στο σημείο όπου διακόπηκε από το σήμα
+Εάν ο πυρήνας του Linux προσδιορίσει ότι εκκρεμεί ένα μη αποκλεισμένο σήμα για μια διεργασία, τότε, στην επόμενη μετάβαση πίσω στη λειτουργία χρήστη σε αυτήν τη διαδικασία,
+δημιουργεί ένα νέο πλαίσιο στη στοίβα χώρου χρήστη όπου αποθηκεύει διάφορα κομμάτια του περιβάλλοντος διεργασίας (processor status word, registers, signal mask, and signal stack settings).
+
+3:
+export: κάνει μια μεταβλητή κάτι που θα συμπεριληφθεί σε περιβάλλοντα child process. Δεν επηρεάζει άλλα ήδη υπάρχοντα περιβάλλοντα.
+        Γενικά, δεν υπάρχει τρόπος να ορίσετε μια μεταβλητή σε ένα terminal και να εμφανιστεί αυτόματα σε άλλο, το περιβάλλον δημιουργείται για κάθε διεργασία από μόνο του.
+
+4:  In a FIFO pipe, a read after  write would always read the last byte that was just written. In a regular file the read after write reads the next byte.
+
+5:   fcntl(99, F_GETFD) = -1 EBADF (Bad file descriptor) // με F_GETFD επιστρεφει the file descriptor flags, the flags of fd = 99
+
+6: ./ch6
+***
+    strace -f ./riddle:
+    [pid 19488] read(33, 0x7ffdbdf8922c, 4) = -1 EBADF (Bad file descriptor)
+    [pid 19487] write(34, "\0\0\0\0", 4)    = -1 EBADF (Bad file descriptor)
+    So 33 reads 4 bytes
+       34 writes 4 bytes
+    ----
+    Καναμε με dup2 τους fd να δειχνουν σε αρχειο και
+    [pid 19509] read(53, 0x7ffd0d57430c, 4) = -1 EBADF (Bad file descriptor)
+    Καναμε με dup2 τον fd να δειχνουν σε αρχειο και μας εμφανισε οτι υπαρχει και fd 54 στον οποιο το εκτελεσιμο θελει να κανει write 4 bytes.
+
+7:
+    lstat(".hey_there", 0x7ffd2bd31a90)     = -1 ENOENT (No such file or directory) //return information about a file, execute (search) permission is required on all of the directories in path that lead to the file
+  =>touch .hey_there
+    write(2, "Oops. 674986 != 674995.\n", 24Oops. 674986 != 674995.) = 24
+    Λεει το hint hard links
+  =>rm .hey_there
+
+Hard link είναι το ακριβές αντίγραφο του αρχείου στο οποίο δείχνει
+Το inode είναι μια δομή αρχείων σε ένα σύστημα αρχείων, είναι μια «βάση δεδομένων» όλων των πληροφοριών των αρχείων εκτός από τα περιεχόμενα του αρχείου και το όνομα του αρχείου,
+που είναι αποθηκευμένα σε ένα «σύστημα αρχείων»
+
+8:
+    openat(AT_FDCWD, "bf00", O_RDONLY)      = -1 ENOENT (No such file or directory)
+  =>touch bf00
+    openat(AT_FDCWD, "bf00", O_RDONLY)      = 4
+    lseek(4, 1073741824, SEEK_SET)          = 1073741824
+    read(4, "", 16)                         = 0 //θελουμε 1
+    fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0x1), ...}) = 0 //Get File Information by Descriptor, S_IFCHR: character device, st_rdev: describes  the  device  that  this  file   (inode) represents
+    write(1, "X", 1X)                        = 1
+    close(4)                                = 0
+    9 φορες:
+    openat(AT_FDCWD, "bf00", O_RDONLY)      = 4
+    lseek(4, 1073741824, SEEK_SET)          = 1073741824
+    read(4, "", 16)                         = 0
+    write(1, "X", 1X)                        = 1
+    close(4)                                = 0
+    Data files must be present and whole. FAIL
+    => lseek creates holes in the file
+    rm bf00 και τρεχουμε τις 4 πρωτες σειρες της main του ./ch8 και
+    Βλεπουμε οτι γινεται η ιδια διαδικασια για το αρχειο bf00 επαναλαμβανεται για το αρχειο bf01 και επαναλαμβανουμε την παραπανω διαδικασια διαπιστωνοντας οτι αυτο γινεται για αρχεια bf00-bf09
+
+    memcmp(0x7f5a4fb90148, 0x5612c0a087a0, 40, 20) = 0xffffffca -> int memcmp(const void *str1, const void *str2, size_t n):συγκρίνει τα πρώτα n bytes της περιοχής μνήμης του str1 και αυτης του str2
+
+9:  έτσι μπορούμε να μεταφέρουμε δεδομένα μεταξύ TCP και LISTEN.
+use the TCP4 protocol and listen on port 49842 and print any given information from a client to the terminal(STDOUT)
+
+socat έχει περισσότερες πρόσθετες λειτουργίες απο την netcat, όπως το να επιτρέπεται σε πολλούς πελάτες να ακούν σε μια θύρα ή να την επαναχρησιμοποιηση συνδέσεων
+***
+    strace: socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = 4
+            connect(4, {sa_family=AF_INET, sin_port=htons(49842), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 ECONNREFUSED (Connection refused)
+    ltrace: inet_aton("127.0.0.1", { 0x100007f }) = 1   //μετατρεπει την Internet host address cp from the IPv4 numbers-and-dots notation σε binary μορφη
+
+socket(int domain, int type, int protocol): δημιουργεί ένα endpoint επικοινωνίας και επιστρεφει εναν fd που αναφερεται σε αυτο το endpoint
+domain AF_INET: Διευθυνσιοδότηση των sockets, Internet protocols
+type SOCK_STREAM: Μεταδοση δεδομενων πανω στο καναλι επικοινωνιας, Παρέχει διαδοχικές, αξιόπιστες, αμφίδρομες, connection-based ροές byte. Μπορεί να υποστηρίζεται μηχανισμός μετάδοσης δεδομένων εκτός ζώνης.
+protocol IPPROTO_IP == 0: Αφηνουμε το συστημα να επιλεξει το πρωτοκολλο το οποιο θα υλοποιησει την  επικοινωνια πανω στο καναλι
+
+connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen): socket sd του πελάτη έχει συνδέθει με ένα αξιόπιστο καναλι επικοινωνιας με το socket που περιγραφει στο server
+sockfd: Οτι επιστρεφει η socket()
+htons: converts the unsigned short integer from network byte order to host byte order
+16 == size of addr
+
+10:
+    sysconf(30, 0x56204d204f32, 578, 0x7ff546684e3b)              = 4096 //ελέγχει ποια είναι η τιμή ορισμένων ορίων
+    malloc(4096)                                                  = 0x56204f324ba0 //εκχωρεί την ζητούμενη μνήμη και επιστρέφει έναν δείκτη σε αυτήν
+
+mmap(void *addr, size_t length, int protocols, int flags, int fd, off_t offset): Aντιστοιχίζει τα περιεχόμενα ενός ανοιχτού αρχείου που προσδιορίζεται από έναν fd στη μνήμη της εκτελούμενης διαδικασίας.
+NULL: ο πυρήνας επιλέγει τη διεύθυνση (page-aligned) στην οποία θα δημιουργήσει το mapping, το Linux θα επιλέξει ένα κοντινό όριο σελίδας (αλλά πάντα πάνω ή ίσο με την τιμή που καθορίζεται από το /proc/sys/vm/mmap_min_addr)
+If the name referred to a symbolic link, the link is removed. => Δημιουργουμε hard link το οποιο δεν αφαιρει η unlink
+
+fflush(0x7ff54675e5c0) -> int fflush(FILE *stream):αδειάζει(or flush) το output του buffer και μεταφέρει τα δεδομένα του buffer to cοnsole (in case of stdout) ή στο δίσκο (in case of file output stream)
+
+12:
+    mkstemp(0x7ffdad697450, 0x7ffdad694e10, 0x7fd9a03187f4, 0)= 4 : φτιαχνει ενα μοναδικο τυχαιο ονομα για το αρχειο  , creates and opens the file, and returns an open file descriptor for the file
+    PROT_READ Pages may be read.
+    PROT_WRITE Pages may be written.
+    MAP_SHARED   Οι ενημερώσεις του mapping είναι ορατές σε άλλες διεργασίες που αντιστοιχούν στην ίδια περιοχή και μεταφέρονται στο υποκείμενο αρχείο
+                 (Updates to the mapping are visible to other processes mapping the same region, and are carried through to the underlying file)
+
+    lseek(0, -1, SEEK_CUR)      = -1 ESPIPE (Illegal seek) (του ch12) :Θέτει το file offset το τωρινό offset συν το καθορισμένο offset.
+
+13:
+    munmap(0x7f0efb78a000, 32768)           = 0
+
+Θα λάβετε SIGBUS εάν προσπαθήσετε να γράψετε πέρα από την mapped περιοχή του αρχείου.
+Οι πιθανότητες είναι πολύ καλές οι λογαριασμοί αρχείων του καταστήματος υποστήριξης να είναι truncated/πολύ σύντομοι. (π.χ.) εάν το αρχείο έχει χώρο για 10 καταχωρήσεις δομής και γράψετε στην 11η, θα λάβετε SIGBUS
+Κάντε ένα fstat για να λάβετε st_size και συγκρίνετε αυτό με την παράμετρο μήκους που δίνετε στο mmap
+
+munmap(void *addr, size_t length): διαγράφει τα mappings για το καθορισμένο εύρος διευθύνσεων και προκαλεί περαιτέρω αναφορές σε διευθύνσεις εντός του εύρους για τη δημιουργία μη έγκυρων αναφορών μνήμης.
+                                   Η περιοχή επίσης καταργείται αυτόματα όταν τερματίζεται η διαδικασία. Από την άλλη πλευρά, το κλείσιμο της file descriptor δεν καταργεί το unmap της περιοχής.
+
+14:
+    τρεξιμο σε νεο terminal που δεν εχουμε κανει export
+    strace -f ./ch14 => write(3, "32766", 5) = -1 EPERM (Operation not permitted)

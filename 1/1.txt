@@ -1,0 +1,239 @@
+ΛΥΣΕΙΣ ΑΝΑΛΥΤΙΚΑ
+
+0:  touch .hello_there
+***
+    openat(AT_FDCWD, ".hello_there", O_RDONLY) = -1 ENOENT (No such file or directory)
+Θέλει να ανοίξει το .hello_there αρχείο, άρα το φτιάχνουμε με touch .hello_there
+
+1:  chmod -rw .hello_there
+***
+    openat(AT_FDCWD, ".hello_there", O_WRONLY)
+    I found the doors unlocked. FAIL
+Η κλήση συστήματος read έχει παράμετρο O_WRONLY για το αρχείο .hello_there, ενώ εμείς θέλουμε να μην εχει permissions για write.
+Γι'αυτό καλούμε την chmod -rw ώστε να αφαιρεσουμε το δικαιωμα γραψιματος στο file hello_there. Ετσι η open επιστρεφει -1 και το challenge περναει.
+
+2:  σε αλλο terminal ενω τρεχει
+    pidof riddle: από εδώ παίρνουμε το pid της διεργασίας όσο τίθεται σε pause()
+    kill -SIGCONT pid: όπου pid το αποτέλεσμα της pidof
+***
+    pause() = ? ERESTARTNOHAND (To be restarted if no handler)
+    --- SIGALRM {si_signo=SIGALRM, si_code=SI_KERNEL} ---
+    rt_sigreturn({mask=[]}) = -1 EINTR (Interrupted system call) //επαναφέρει την process's signal mask, αλλαζει stacks, και επαναφέρει το περιβάλλον της διαδικασίας,
+                                                                   έτσι ώστε η διαδικασία να συνεχίσει την εκτέλεση στο σημείο όπου διακόπηκε από το σήμα
+
+Εάν ο πυρήνας του Linux προσδιορίσει ότι εκκρεμεί ένα μη αποκλεισμένο σήμα για μια διεργασία, τότε, στην επόμενη μετάβαση πίσω στη λειτουργία χρήστη σε αυτήν τη διαδικασία,
+δημιουργεί ένα νέο πλαίσιο στη στοίβα χώρου χρήστη όπου αποθηκεύει διάφορα κομμάτια του περιβάλλοντος διεργασίας (processor status word, registers, signal mask, and signal stack settings).
+
+3:  ltrace ./riddle + export ANSWER = 42
+***
+    getenv("ANSWER") = nil
+    what is the answer to life the universe and everything?
+
+export: κάνει μια μεταβλητή κάτι που θα συμπεριληφθεί σε περιβάλλοντα child process. Δεν επηρεάζει άλλα ήδη υπάρχοντα περιβάλλοντα.
+        Γενικά, δεν υπάρχει τρόπος να ορίσετε μια μεταβλητή σε ένα terminal και να εμφανιστεί αυτόματα σε άλλο, το περιβάλλον δημιουργείται για κάθε διεργασία από μόνο του.
+
+Αρχικά τρέχουμε στο terminal ltrace ./riddle, σύμφωνα με το hint. Η μεταβλητή περιβάλλοντος ANSWER δεν υπάρχει αρχικά
+και αυτό προκύπτει από τη γραμμή getenv("ANSWER")=nil. Από το hint 'what is the answer to life the universe and everything?',
+ANSWER=42.
+
+4:  touch magic_mirror: γιατί open=-1 για το magic_mirror, άρα πρέπει να το δημιουργήσουμε
+    ltrace και export = 1 τις 2 μεταβλητες
+    rm magic_mirror
+    mkfifo magic_mirror
+    ./riddle
+    ***
+    openat(AT_FDCWD, "magic_mirror", O_RDWR) = -1 ENOENT (No such file or directory)
+    getenv("I_HATE_GAME_HINTS") = nil
+    getenv("I_NEED_TECH_HINTS") = nil
+    ---------------------------------
+    openat(AT_FDCWD, "magic_mirror", O_RDWR) = 4
+    write(4, "D", 1)                        = 1
+    read(4, "", 1)                          = 0
+    write(2, "\33[31mI cannot see my reflection."..., 42I cannot see my reflection. FAIL
+In a FIFO pipe, a read after a write would always read the last byte that was just written.
+In a regular file the read after write reads the next byte.
+
+5:  ./ch5
+***
+    fcntl(99, F_GETFD) = -1 EBADF (Bad file descriptor) // with argumet F_GETFD returns (as the function result) the file descriptor flags. In our scenario the flags of fd = 99
+Τρέχοντας strace ./riddle, παρατηρούμε την γραμμή fcntl(99, F_GETFD)= -1 EBADF (Bad file descriptor).
+Γι' αυτό, κάνουμε touch ch5.c και γράφουμε κώδικα στον οποίο αλλάζουμε το fd σε 99 και ξανακάνουμε fcntl ώστε να προκύψει
+>0.
+dup2():Το χρησιμοποιούμε για να κάνουμε τον fd 99
+fcntl(fd, F_GETFD): παίρνουμε τα file descriptor flags
+execv: ενώνουμε τα δύο αρχεία (s,riddle)
+
+6: ./ch6
+***
+    strace -f ./riddle:
+    [pid 19488] read(33, 0x7ffdbdf8922c, 4) = -1 EBADF (Bad file descriptor)
+    [pid 19487] write(34, "\0\0\0\0", 4)    = -1 EBADF (Bad file descriptor)
+    So 33 reads 4 bytes
+       34 writes 4 bytes
+    ----
+    Καναμε με dup2 τους fd να δειχνουν σε αρχειο και
+    [pid 19509] read(53, 0x7ffd0d57430c, 4) = -1 EBADF (Bad file descriptor)
+    Καναμε με dup2 τον fd να δειχνουν σε αρχειο και μας εμφανισε οτι υπαρχει και fd 54 στον οποιο το εκτελεσιμο θελει να κανει write 4 bytes.
+
+Τρέχουμε strace -f ./riddle, για να δούμε τα pid των child processes και τις κλήσεις συστήματος που εκτελούνται κάθε φορά.
+Έπειτα, παρατηρούμε ότι η μία διεργασία-παιδί με fd=33 προσπαθεί ανεπιτυχώς να διαβάσει και η αλλή με fd=34 προσπαθεί
+ανεπιτυχώς να διαβάσει. Το ίδιο συμβαίνει και με fd 53,54 αντίστοιχα. Έτσι, δημιουργούμε δύο pipes και αλλάζουμε μέσω dup2()
+τους fd διαβάσματος σε 33 και 53 (στο άκρο read των pipes) και τους fd εγγραφής σε 34 και 54 (στο άκρο write των pipes).
+
+7:  ln .hello_there .hey_there
+***
+    lstat(".hey_there", 0x7ffd2bd31a90)     = -1 ENOENT (No such file or directory) //return information about a file, execute (search) permission is required on all of the directories in path that lead to the file
+  =>touch .hey_there
+    write(2, "Oops. 674986 != 674995.\n", 24Oops. 674986 != 674995.) = 24
+    Λεει το hint hard links
+  =>rm .hey_there
+
+Hard link is the exact replica of the actual file it is pointing to
+inode is a file structure on a file system, it is a “database” of all file information except the file contents and the file name, sstored in a “filesystem”
+
+Παρατηρούμε lstat(".hey_there", 0x7ffcdbd99400)= -1 ENOENT (No such file or directory), άρα κάνουμε touch .hey_there.
+Στη συνέχεια, βλέπουμε ότι υπάρχει fail κατά τη σύγκριση δύο άνισων αριθμών, τα οποία είναι τα inodes των δυο αρχείων.
+Έτσι, χρησιμοποιούμε την ln .hello_there .hey_there για να δημιουργήσουμε link μεταξύ των δύο αρχείων, δηλαδή να
+εξισώσουμε τα inodes.
+
+(inode:a data structure in a Unix-style file system that describes a file-system object such as a file
+or a directory. Each inode stores the attributes and disk block locations of the object's data)
+
+
+
+8:  ./ch8
+***
+    openat(AT_FDCWD, "bf00", O_RDONLY)      = -1 ENOENT (No such file or directory)
+  =>touch bf00
+    openat(AT_FDCWD, "bf00", O_RDONLY)      = 4
+    lseek(4, 1073741824, SEEK_SET)          = 1073741824
+    read(4, "", 16)                         = 0 //θελουμε 1
+    fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0x1), ...}) = 0 //Get File Information by Descriptor, S_IFCHR: character device, st_rdev: describes  the  device  that  this  file   (inode) represents
+    write(1, "X", 1X)                        = 1
+    close(4)                                = 0
+    9 φορες:
+    openat(AT_FDCWD, "bf00", O_RDONLY)      = 4
+    lseek(4, 1073741824, SEEK_SET)          = 1073741824
+    read(4, "", 16)                         = 0
+    write(1, "X", 1X)                        = 1
+    close(4)                                = 0
+    Data files must be present and whole. FAIL
+    => lseek creates holes in the file
+    rm bf00 και τρεχουμε τις 4 πρωτες σειρες της main του ./ch8 και
+    Βλεπουμε οτι γινεται η ιδια διαδικασια για το αρχειο bf00 επαναλαμβανεται για το αρχειο bf01 και επαναλαμβανουμε την παραπανω διαδικασια διαπιστωνοντας οτι αυτο γινεται για αρχεια bf00-bf09
+
+Επαναλαμβάνεται η εξής γραμμή: openat(AT_FDCWD, "bf00", O_RDONLY) = -1 ENOENT (No such file or directory).
+Αν ανοίξουμε το bf00, τότε εκτελείται η lseek και το εκτελέσιμο διαβάζει από ένα σημείο του αρχείου στο οποίο δεν υπάρχουν
+δεδομένα. Το ίδιο συμβαίνει και για τα αρχεία bf01-bf09 που προκύπτουν στη συνέχεια. Έτσι, ανοίγουμε καθένα από αυτα
+(με παράμετρο O_CREAT ώστε να δημιουργηθούν), εκτελούμε lseek για να πάμε στο σημείο του εκάστοτε αρχείου που υπάρχουν δεδομένα.
+
+9:  σε αλλο terminal sudo socat TCP4-LISTEN:49842 STDOUT: socat περιμένει σύνδεση με port 49842, έτσι μπορούμε να μεταφέρουμε δεδομένα μεταξύ TCP και LISTEN.
+use the TCP protocol and listen on port 123 and print any given information from a client to the terminal(STDOUT)
+Τέλος, καλούμαστε να υλοποίησουμε μια αριθμητική πράξη και να την γράψουμε σε άλλο terminal.
+socat has more additional functionality than netcat, such as permitting multiple clients to listen on a port, or reusing connections
+***
+    strace: socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = 4
+            connect(4, {sa_family=AF_INET, sin_port=htons(49842), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 ECONNREFUSED (Connection refused)
+    ltrace: inet_aton("127.0.0.1", { 0x100007f }) = 1   //converts the Internet host address cp from the IPv4 numbers-and-dots notation into binary form
+
+socket(int domain, int type, int protocol):creates an endpoint for communication and returns a file descriptor that refers to that endpoint
+domain AF_INET: Διευθυνσιοδότηση των sockets, Internet protocols
+type SOCK_STREAM: Μεταδοση δεδομενων πανω στο καναλι επικοινωνιας, Provides sequenced, reliable, two-way, connection-based byte streams.  An out-of-band data transmission mechanism may be supported.
+protocol IPPROTO_IP == 0: Αφηνουμε το συστημα να επιλεξει το πρωτοκολλο το οποιο θα υλοποιησει την  επικοινωνια πανω στο καναλι
+
+connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen): socket sd του πελάτη έχει συνδέθει με ένα αξιόπιστο καναλι επικοινωνιας με το socket που περιγραφει στο server
+sockfd: Οτι επιστρεφει η socket()
+htons: converts the unsigned short integer netshort from network byte order to host byte order
+16: size of addr
+
+
+10: touch secret_number
+    ln secret_number try.txt
+    ***
+    STRACE
+     openat(AT_FDCWD, "secret_number", O_RDWR|O_CREAT|O_TRUNC, 0600) = 5
+     unlink("secret_number")                 = 0
+     write(5, "The number I am thinking of righ"..., 4096) = 4096
+     mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, 5, 0) = 0x7ff2d3fe2000
+     close(5)                                = 0
+    LTRACE
+     open("secret_number", 578, 0600)                              = 4
+     unlink("secret_number")                                       = 0
+     sysconf(30, 0x56204d204f32, 578, 0x7ff546684e3b)              = 4096 //test what the value is of certain configurable limits
+     malloc(4096)                                                  = 0x56204f324ba0 //allocates the requested memory and returns a pointer to it, returns a pointer to the allocated memory
+     write(4, "The number I am thinking of righ"..., 4096)         = 4096
+     mmap(0, 4096, 3, 1)                                           = 0x7ff54677f000
+     close(4)                                                      = 0
+
+mmap(void *addr, size_t length, int protocols, int flags, int fd, off_t offset): Aντιστοιχίζει τα περιεχόμενα ενός ανοιχτού αρχείου που προσδιορίζεται από έναν fd στη μνήμη της εκτελούμενης διαδικασίας.
+NULL: the kernel chooses the (page-aligned) address at which to create the mapping, Linux  will pick a nearby page boundary (but always above or equal to the value specified by /proc/sys/vm/mmap_min_addr)
+
+If the name referred to a symbolic link, the link is removed. => Δημιουργουμε hard link το οποιο δεν αφαιρει η unlink
+Δημιουργούμε το αρχείο secret_number. Ενώ το εκτελέσιμο κάνει open, μετά κάνει unlink το secret_number, επομένως το αρχείο θα υπάρχει μέχρι ο τελευταίος fd να κλείσει
+Κάνουμε touch το secret_number και για να μπορούμε να διαβάσουμε το περιεχόμενό του, δημιουργούμε hard link με ένα αρχείο try.txt. Εκεί θα εμφανιστεί ο αριθμός που ζητά το εκτελέσιμο.
+
+11: ./ch11
+(If the name was the last link to a file but any processes still have the file open, the file will remain in existence until the last file descriptor referring to it is closed.)
+Δε μπορούμε πάλι να δούμε το περιεχόμενο του secret_number, γι' αυτό ανοίγουμε το αρχείο μέσω μίας διεργασίας, το διαβάζουμε από τον κώδικα του πατέρα και ενώνουμε τα δύο αρχεία στον κώδικα παιδιού.
+
+
+12: strace -f ./ch12
+***
+    openat(AT_FDCWD, "/tmp/riddle-h1bGbl", O_RDWR|O_CREAT|O_EXCL, 0600) = 4
+    ftruncate(4, 4096)                      = 0 //the size of the file to be truncated to length
+    mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, 4, 0) = 0x7f4d33abf000
+    write(2, "I want to find the char 'Z' at 0"..., 46I want to find the char 'Z' at 0x7f4d33abf06f) = 46
+
+    mkstemp(0x7ffdad697450, 0x7ffdad694e10, 0x7fd9a03187f4, 0)    = 4 : φτιαχνει ενα μοναδικο τυχαιο ονομα για το αρχειο  , creates and opens the file, and returns an open file descriptor for the file
+
+    strace -f Για να δουμε το ονομα του αρχειου
+
+13: re-truncate the file back to its original size
+    chmod +rw .hello_there
+    ./riddle
+    Eνω τρεχει ./ch13 και γραψε κατι στο terminal του riddle
+***
+    openat(AT_FDCWD, ".hello_there", O_RDWR|O_CREAT, 0600) = -1 EACCES (Permission denied)
+ => chmod +rw .hello_there
+    ----
+    openat(AT_FDCWD, ".hello_there", O_RDWR|O_CREAT, 0600) = 4
+    ftruncate(4, 32768)                     = 0
+    mmap(NULL, 32768, PROT_READ|PROT_WRITE, MAP_SHARED, 4, 0) = 0x7fb83076c000
+    ftruncate(4, 16384)                     = 0
+    read(0, 4
+    "4", 1)                         = 1
+    --- SIGBUS {si_signo=SIGBUS, si_code=BUS_ADRERR, si_addr=0x7fb830770000} ---
+    +++ killed by SIGBUS (core dumped) +++
+    Bus error (core dumped)
+    ----
+    read(0, 3
+    "3", 1)                         = 1
+    munmap(0x7f0efb78a000, 32768)           = 0
+    close(4)                                = 0
+
+You will get SIGBUS if you attempt to write past the mapped region of the file.
+Chances are pretty good that your backing store file accounts is truncated/too short. (e.g.) if the file has space for 10 struct entries and you write to the 11th, you'll get SIGBUS
+Do an fstat to get st_size and compare this against the length parameter you're giving to mmap
+You may want to consider using ftruncate to extend the file before doing mmap
+
+munmap(void *addr, size_t length): διαγράφει τα mappings για το καθορισμένο εύρος διευθύνσεων και προκαλεί περαιτέρω αναφορές σε διευθύνσεις εντός του εύρους για τη δημιουργία μη έγκυρων αναφορών μνήμης.
+                                   Η περιοχή επίσης καταργείται αυτόματα όταν τερματίζεται η διαδικασία. Από την άλλη πλευρά, το κλείσιμο της file descriptor δεν καταργεί το unmap της περιοχής.
+
+14: Σε αυτό το ερώτημα, η διεργασία χρειάζεται συγκεκριμένο pid(32767). Για να το πετύχουμε αυτό, πρέπει να ανοίξουμε το "/proc/sys/kernel/ns_last_pid", να κάνουμε flock το συγκεκριμένο fd και στη
+συνέχεια κάνουμε εκ νέου fork τη διεργασία.
+sudo ./ch14
+***
+    τρεξιμο σε νεο terminal που δεν εχουμε κανει export
+    Hint:          'Are you 32767? If not, reincarnate!'.
+    getpid() = ...
+    ---
+    strace -f ./ch14 => write(3, "32766", 5) = -1 EPERM (Operation not permitted)
+    sudo ./ch14
+
+
+ΕΠΑΝΑΛΑΜΒΑΝΟΜΕΝΕΣ ΚΛΗΣΕΙΣ ΤΟΥ ΕΚΤΕΛΕΣΙΜΟΥ
+
+8---memcmp(0x7f5a4fb90148, 0x5612c0a087a0, 40, 20) = 0xffffffca -> int memcmp(const void *str1, const void *str2, size_t n):compares the first n bytes of memory area str1 and memory area str2
+    returns an integer less than, equal to, or greater than zero if the first n bytes of s1 is found,respectively, to be less than, to match, or be greater than the first n bytes of s2.
+10--fflush(0x7ff54675e5c0)=0 -> int fflush(FILE *stream): clear (or flush) the output buffer and move the buffered data to console (in case of stdout) or disk (in case of file output stream) success:0, error: EOF
+12--lseek(0, -1, SEEK_CUR)      = -1 ESPIPE (Illegal seek) (του ch12) :Set the file offset to current offset plus the specified offset.
