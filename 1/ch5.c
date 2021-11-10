@@ -7,10 +7,10 @@
 #include <fcntl.h>
 
 int main(){
-    int fd,a;
-    fd = open ("s.txt", O_RDONLY);
-    dup2(fd, 99);
-    fcntl(99, F_GETFD);
+    int fd;
+    fd = open ("s.txt", O_RDONLY| O_CREAT);
+    dup2(fd, 99); //εκχωρει ενα νεο fd που αναφέρεται στην ίδια περιγραφή ανοιχτού αρχείου με το παλιό fd
+                  //se antithesi me dup, orizoume emeis ton new fd
     char *const argv[] = {"./riddle",NULL};
     int status = execv(argv[0], argv);
     if (status < 0) {  //τρεχει μονο αν αποτυχει η execv
