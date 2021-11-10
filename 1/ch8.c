@@ -6,20 +6,6 @@
 #include <time.h>
 #include <fcntl.h>
 
-int create_sparse_file(char *path, u_int64_t size)
-{
-    int fd = 0; 
-    fd = open(path, O_RDWR|O_CREAT, 0666);
-    printf("%d",fd);
-    if (fd == -1) {
-        return -1;
-    }    
-    if (lseek(fd, size - 1, SEEK_SET) == -1) {
-        return -1;
-    }    
-    //write(fd, "\0", 1);
-}
-
 int main(){
     int fd = open("bf00", O_RDWR|O_CREAT, 0666);
     lseek(fd,1073741824, SEEK_SET);
@@ -61,8 +47,4 @@ int main(){
     lseek(fd,1073741824, SEEK_SET);
     write(fd,"X",1);
     close(fd);
-    //close(3);
-    //int fd1=open("bf00",O_RDWR,0666);
-    //write(fd1,"X",1);
-    //close(fd1);
 }
