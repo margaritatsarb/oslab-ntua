@@ -1,0 +1,27 @@
+0:  touch .hello_there
+1:  chmod -rw .hello_there
+2:  σε αλλο terminal ενω τρεχει
+    pidof riddle
+    kill -SIGCONT pid
+3:  ltrace ./riddle
+    export ANSWER = 42
+4:  touch magic_mirror
+    ltrace ./riddle
+    export I_NEED_TECH_HINTS = 1
+    export I_HATE_GAME_HINTS = 1
+    rm magic_mirror
+    mkfifo magic_mirror
+5: ./ch5
+6:  strace -f ./riddle
+    ./ch6
+7:  ln .hello_there .hey_there
+8:  ./ch8
+9:  σε αλλο terminal sudo socat TCP4-LISTEN:49842 STDOUT
+10: touch secret_number
+    ln secret_number try.txt
+11: ./ch11
+12: strace -f ./ch12 για να δουμε το ονομα του αρχειου
+13:  chmod +rw .hello_there
+    ./riddle
+    Eνω τρεχει ./ch13 και γραψε κατι στο terminal του riddle
+14: sudo ./ch14
