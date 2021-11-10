@@ -8,5 +8,6 @@
 
 int main(){
     int fd=open(".hello_there",O_RDWR);
-    ftruncate(fd, 32768);
+    //Παιρνουμε SIGBUS επειδη προσπαθει το εκτελεσιμο να γραψει περα απο το τελος της mapped περιοχης του αρχειου => κανουμε το αρχειο να εχει μεγεθος τοσο ωστε να μην συμβαινει αυτο
+    ftruncate(fd, 32768); //resize the file to 32KB 
  }
