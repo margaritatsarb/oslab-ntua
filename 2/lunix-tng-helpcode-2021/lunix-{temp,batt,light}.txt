@@ -1,0 +1,2 @@
+lunix0-{temp,batt,light}:25.356, 3.354, 3.051
+lunix1-{temp,batt,light}:28.579, 3.301, 20.141
