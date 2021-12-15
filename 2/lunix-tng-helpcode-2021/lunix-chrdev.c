@@ -41,6 +41,7 @@ struct cdev lunix_chrdev_cdev;
 static int lunix_chrdev_state_needs_refresh(struct lunix_chrdev_state_struct *state){
 	struct lunix_sensor_struct *sensor;
 	WARN_ON ( !(sensor = state->sensor)); //???
+  debug("looking if it needs refresh");
 	//Συγκρίνουμε την τελευταία φορά που πήραμε δεδομένα από τους sensor buffers και την τελευταία φορά που ήρθαν δεδομένα σε αυτόυς και συμπεραίνουμε αν ο δικός μας buffer χρειάζεται refresh
   if (sensor->msr_data[state->type]->last_update != state->buf_timestamp) {
         debug("State needs refreshing!\n");
@@ -55,8 +56,8 @@ static int lunix_chrdev_state_needs_refresh(struct lunix_chrdev_state_struct *st
 
 static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state){
 	  struct lunix_sensor_struct *sensor;
-    //unsigned long flags;        //spinlock's flag is an unsigned long int
     long int result;            //lookup tables give long int
+		int ret;
 
 	  debug("leaving\n");
     WARN_ON ( !(sensor = state->sensor)); //there is no data available right now, try again later
@@ -65,18 +66,11 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state){
 	   * Grab the raw data quickly, hold the spinlock for as little as possible.
 	   */
 
-     //save the state, if locked already it is saved in flags
-     //saving the state here with irqsave is redundant
-     //spinlock is used here because of small code not interrupt context
-
 		 spin_lock(&sensor->lock); //κλειδώνουμε το spinlock του αντίστοιχου αισθητήρα, πριν το κλειδώσει απενεργοποιεί τα interrupts στη συγκεκριμένη CPU
-     //spin_lock_irqsave(&sensor->lock, flags);
      uint16_t value = sensor->msr_data[state->type]->values[0]; //ανανέωση τιμών, lookup tables require uint16_t
      uint32_t current_timestamp = sensor->msr_data[state->type]->last_update; //ανανέωση timestamp, defined in lunix_msr_data_struct
-     // return to the formally state specified in flags
 
 		 spin_unlock(&sensor->lock); //αν δεν υπάρχει νέα μέτρηση
-     //spin_unlock_irqrestore(&sensor->lock, flags);
 	/* Why use spinlocks? See LDD3, p. 119 */
 
 	/*
@@ -92,15 +86,14 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state){
             else if (state->type == TEMP) result = lookup_temperature[value];
             else if (state->type == LIGHT) result = lookup_light[value];
             else {
-                debug("Internal Error: Type doesnt match one the three available \
-                                                            (BATT, TEMP, LIGHT)");
-                return -EMEDIUMTYPE;    //wrong medium type
+                debug("Type doesnt match one the three available \
+                                                            (BATT, TEMP, LIGHT): internal error");
+                ret = -EMEDIUMTYPE;    //wrong medium type
                 goto out;
             }
 
-            /*save formatted data in chrdev state buffer*/
 						//μορφοποιούμε τα δεδομένα κάνοντας χρήση των ειδικών πινάκων, ανανεώνουμε το timestamp και μεταφέρουμε τα δεδομένα μας στον buffer.
-            return 0;
+            ret = 0;
             state->buf_timestamp = current_timestamp;
             state->buf_lim = snprintf(state->buf_data, LUNIX_CHRDEV_BUFSZ, \
                                     "%ld.%03ld\n", result/1000, result%1000);
@@ -108,14 +101,14 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state){
 					 //επιστρεφει τον αριθμό των byte που έγραψε στα buf_data, δηλαδή το μέγεθος της μέτρησης
         }
         else{   //raw data
-            debug("skipped lookup table conversion, returning raw bytes...\n");
+            debug("returning raw bytes (skipped lookup table conversion)\n");
             ret = 0;
             state->buf_timestamp = current_timestamp; //θέτουμε timestamp του buffer το νέο timestamp
             state->buf_lim = snprintf(state->buf_data, LUNIX_CHRDEV_BUFSZ, \
                                     "%x\n", value); //prints raw_data as hex
         }
     }
-    else return -EAGAIN; //δεν υπάρχουν νέα διαθέσιμα δεδομένα τώρα, προσπάθησε αργότερα
+    else ret = -EAGAIN; //δεν υπάρχουν νέα διαθέσιμα δεδομένα τώρα, προσπάθησε αργότερα
 
 out:
 	debug("leaving\n");
@@ -161,8 +154,7 @@ static int lunix_chrdev_open(struct inode *inode, struct file *filp){
     state->buf_lim = 0;         //μέγεθος
     state->buf_timestamp = 0;   //πόσο πρόσφατη είναι η μέτρηση που περιέχει το ανοιχτό αρχείο σε κάθε στιγμή
 		//Aποθηκεύουμε την δομή state στα private_data της δομής file του ανοιχτού αρχείου ώστε να έχουμε εύκολη πρόσβαση σε αυτήν σε κάθε λειτουργία πάνω στο ανοιχτό αρχείο
-    filp->private_data = state; //points to the current state of the device
-                                //stores a pointer to it for easier access
+    filp->private_data = state; //δηµιουργεί µια δοµή file η οποία αναπαριστά ενα ανοιχτό αρχείο και µέσω αυτής έχει πρόσβαση στο struct file_operations lunix_chrdev_fops
     state->raw_data = 0;        //by default, in coocked data mode
 
     sema_init(&state->lock,1);  //initialize semaphore with 1 (unlocked), refers to a single struct file
@@ -175,49 +167,26 @@ out:
 static int lunix_chrdev_release(struct inode *inode, struct file *filp){
     debug("Releasing allocated memory for private file data\n");
     kfree(filp->private_data); //απελευθερώνουμε τον χώρο στη μνήμη που είχαμε δεσμεύσει για τα ειδικά δεδομένα
-    debug("Done releasing private file data, exiting now..");
+    debug("Done releasing private file data => exiting");
 	return 0;
 }
 
 static long lunix_chrdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg){
-    struct lunix_chrdev_state_struct *state;
-    debug("entering\n");
-
-		//ελέγχουμε αν το όρισμα cmd έχει σαν magic number τον magic number της συσκευής (το major number, 60)
-    if (_IOC_TYPE(cmd) != LUNIX_IOC_MAGIC) return -ENOTTY; //gets the magic number of the device this command target
-    //accept only 1 cmd
-    if (_IOC_NR(cmd) > LUNIX_IOC_MAXNR) return -ENOTTY; //gets the sequential number of the command within your device
-
-    state = filp->private_data;
-
-    switch (cmd) {
-        case LUNIX_IOC_DATA_TYPE_CONVERT:
-            if (down_interruptible(&state->lock)) //in case multiple procs with same fd use ioctl
-                return -ERESTARTSYS;
-            //if I have raw data I turn them into coocked and vice versa
-            if (state->raw_data)
-                state->raw_data = 0; //turned into coocked
-            else
-                state->raw_data = 1; //turned into raw
-            up(&state->lock);
-    }
-
-    debug("successfully changed data type transfer, now state->raw_data=%d\n", state->raw_data);
-  	return 0;
+	    /* Why? */
+    return -EINVAL;
 }
 
 static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t cnt, loff_t *f_pos){
 	ssize_t ret, remaining_bytes;
-
 	struct lunix_sensor_struct *sensor;
 	struct lunix_chrdev_state_struct *state;
 
 	state = filp->private_data;
 	WARN_ON(!state);
-
 	sensor = state->sensor;
 	WARN_ON(!sensor);
-    debug("entering!\n");
+
+	debug("entering!\n");
 
 	/*
      * Lock, in case processes with the same fd (struct file) try to access the read
@@ -239,7 +208,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 		while (lunix_chrdev_state_update(state) == -EAGAIN) { //η cache είναι άδεια και τα νέα δεδομένα δεν είναι ακόμα διαθέσιμα
 			/* The process needs to sleep */
 			/* See LDD3, page 153 for a hint */
-			      debug("exiting state update, going to sleep");
+			      debug("exiting state update: going to sleep");
             up(&state->lock); //ξεκλειδώνουμε τον σεμαφόρο του ανοιχτού αρχείου στην περίπτωση κάποιου interrupt
 
             if (filp->f_flags & O_NONBLOCK) return -EAGAIN; //if the file was opened with O_NONBLOCK flag return -EAGAIN
@@ -252,7 +221,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
             if (down_interruptible(&state->lock)) return -ERESTARTSYS;
 		}
 	}
-    debug("Ok, now I have fresh values\n");
+    debug("fresh values available\n");
 
     /* Determine the number of cached bytes to copy to userspace */
     remaining_bytes = state->buf_lim - *f_pos;
@@ -285,25 +254,7 @@ out:
 	  return ret;       //επιστρέφουμε στον χρήστη τον αριθμό των byte που μπορέσαμε να του δώσουμε
 }
 
-/*
- * Open and close methods of mmap. Not nessesary is this implementation though.
- */
-void simple_vma_open(struct vm_area_struct *vma){
-    printk(KERN_NOTICE "simple VMA open, virt %lx, phys %lx\n", \
-            vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
-}
-
-void simple_vma_close(struct vm_area_struct *vma){
-    printk(KERN_NOTICE "simple VMA close.\n");
-}
-
-static struct vm_operations_struct simple_remap_vm_ops ={
-    .close = simple_vma_close,
-    .open = simple_vma_open,
-};
-
 static int lunix_chrdev_mmap(struct file *filp, struct vm_area_struct *vma){
-
     struct lunix_chrdev_state_struct *state;
     struct lunix_sensor_struct *sensor;
     struct page *kernel_page;
@@ -311,34 +262,21 @@ static int lunix_chrdev_mmap(struct file *filp, struct vm_area_struct *vma){
 
     state = filp->private_data;
 		WARN_ON(!state);
-
     sensor = state->sensor;
 		WARN_ON(!sensor);
 
 		debug("Entering...\n");
 
-    //get a pointer to the virtual address's associated struct page-translate virtual pages into physical pages
+    //παιρνουμε εναν δεικτη στην virtual address του struct page
     kernel_page = virt_to_page(sensor->msr_data[state->type]->values);
-    //get the virtual address of the struct page
     kernel_page_address = page_address(kernel_page);
-		debug("Buffer address: %llu, and buffer page address%llu\n", sensor->msr_data[state->type]->values ,kernel_page_address );
+		debug("Buffer address: %llu Buffer page address%llu\n", sensor->msr_data[state->type]->values ,kernel_page_address );
 
-    //get the physical address of the above virtual one
+    //παιρνουμε την physical address της virtual που πηραμε απο πανω
     vma->vm_pgoff = __pa(kernel_page_address) >> PAGE_SHIFT;
 
-    //map the page to the userspace,  επιστρέφει μία σελίδα στο χρήστη
-    if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff, \
-                        vma->vm_end - vma->vm_start,\
-                        vma->vm_page_prot))
-        return -EAGAIN;
-
-    //unessesary, just written for code wholeness, it could be deleted.
-    vma->vm_ops = &simple_remap_vm_ops;
-		printk(KERN_NOTICE "simple VMA open, virt %lx, phys %lx\n", \
-            vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
-
-  debug("Exiting...\n");
-	return 0;
+    debug("Exiting...\n");
+	  return 0;
 }
 
 //Ορίζει ποιες συναρτήσεις θα καλεστούν για τις λειτουργίες του driver
