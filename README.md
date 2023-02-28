@@ -1,4 +1,4 @@
-# oslab ntua
+# operatino systems lab ntua
 1: puzzle
 
 2: Wireless Sensor Network Guide on the Linux operating system
